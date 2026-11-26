@@ -1,0 +1,20 @@
+# ROS 2 / colcon build outputs
+build/
+install/
+log/
+
+# Standalone / sanitizer CMake build directories
+build_*/
+cmake-build-*/
+
+# Editor & OS files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# ROS bags & temporary outputs
+*.db3
+*.mcap
+*.bag

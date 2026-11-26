@@ -1,0 +1,122 @@
+# Default configuration for slam_sensor_fusion_node.
+# Tuned for the Shell Urban Concept vehicle in shell_urban_simulator (Gazebo).
+# Adjust topics, fusion_mode, and covariances once teammates finalize node interfaces.
+
+slam_sensor_fusion_node:
+  ros__parameters:
+    # -------------------------------------------------------------------------
+    # Coordinate Frames & Outputs (REP-103 / REP-105)
+    # -------------------------------------------------------------------------
+    odom_frame_id: "odom"
+    base_frame_id: "base_link"
+    output_odom_topic: "/slam/odometry/filtered"
+    output_path_topic: "/slam/path/filtered"
+    # Keep false while shell_urban_simulator's OdometryPublisher broadcasts odom->base_link on /tf.
+    publish_tf: false
+    publish_path: true
+    max_path_length: 2000
+    path_min_distance_m: 0.05
+    tf_lookup_timeout_sec: 0.02
+    status_log_period_sec: 5.0
+
+    # -------------------------------------------------------------------------
+    # EKF Timing & Process Model Parameters
+    # State order: [x, y, theta, vx, vy, omega, ax, ay]
+    # -------------------------------------------------------------------------
+    ekf:
+      min_dt_sec: 0.0001
+      max_dt_sec: 1.0
+      max_substep_dt_sec: 0.02
+      out_of_order_tolerance_sec: 0.05
+      clock_reset_threshold_sec: 1.0
+      # Initial covariance diagonal (SI squared units)
+      initial_covariance_diag: [0.25, 0.25, 0.10, 0.50, 0.10, 0.10, 1.00, 1.00]
+      # Continuous-rate diagonal process noise Q_rate (multiplied by dt)
+      process_noise_rate_diag: [0.02, 0.02, 0.01, 0.50, 0.05, 0.10, 4.00, 2.00]
+
+    # -------------------------------------------------------------------------
+    # Sensor 1: IMU (sensor_msgs/msg/Imu)
+    # In shell_urban_simulator, imu_link is coincident with base_link at 400 Hz.
+    # -------------------------------------------------------------------------
+    imu:
+      enabled: true
+      topic: "/imu"
+      use_sensor_data_qos: false
+      use_yaw: false            # Set true only if yaw is drift-free / desired
+      use_yaw_rate: true
+      use_linear_accel: true
+      compensate_gravity: true  # Uses roll & pitch from orientation to remove gravity
+      use_message_covariance: true
+      # Fallback diagonal variances: [yaw (rad^2), yaw_rate (rad^2/s^2), ax (m^2/s^4), ay (m^2/s^4)]
+      fallback_yaw_variance: 0.05
+      fallback_yaw_rate_variance: 0.002
+      fallback_accel_variance: [0.25, 0.25]
+      mahalanobis_threshold: 13.277   # chi^2(4, 0.99); <= 0 disables gating
+      timeout_sec: 0.5
+
+    # -------------------------------------------------------------------------
+    # Sensor 2: Wheel / IMU-Wheel Odometry Node (nav_msgs/msg/Odometry)
+    # Defaults to Gazebo's /odom topic in twist mode until teammate's node is ready.
+    # fusion_mode: "twist" | "pose_absolute" | "pose_differential" | "pose_and_twist"
+    # -------------------------------------------------------------------------
+    wheel_odom:
+      enabled: true
+      topic: "/odom"
+      use_sensor_data_qos: false
+      fusion_mode: "twist"
+      use_position: true
+      use_yaw: true
+      use_vx: true
+      use_vy: true              # Enforces Ackermann non-holonomic vy ~= 0 constraint
+      use_omega: true
+      use_message_covariance: true
+      # Fallback diagonal variances: [x (m^2), y (m^2), yaw (rad^2)]
+      fallback_pose_variance: [0.05, 0.05, 0.02]
+      # Fallback diagonal variances: [vx (m^2/s^2), vy (m^2/s^2), omega (rad^2/s^2)]
+      fallback_twist_variance: [0.04, 0.01, 0.02]
+      # Used only when fusion_mode == "pose_differential": per-step incremental pose variance
+      differential_step_variance: [0.002, 0.002, 0.001]
+      mahalanobis_threshold: 11.345   # chi^2(3, 0.99)
+      timeout_sec: 0.5
+
+    # -------------------------------------------------------------------------
+    # Sensor 3: LiDAR Scan Matching Node (nav_msgs/msg/Odometry)
+    # Recommended: "pose_differential" for scan-to-scan, "pose_absolute" for scan-to-map.
+    # -------------------------------------------------------------------------
+    lidar_odom:
+      enabled: true
+      topic: "/lidar_odom"
+      use_sensor_data_qos: false
+      fusion_mode: "pose_differential"
+      use_position: true
+      use_yaw: true
+      use_vx: true
+      use_vy: true
+      use_omega: true
+      use_message_covariance: true
+      fallback_pose_variance: [0.04, 0.04, 0.015]
+      fallback_twist_variance: [0.05, 0.05, 0.02]
+      differential_step_variance: [0.004, 0.004, 0.0015]
+      mahalanobis_threshold: 11.345
+      timeout_sec: 1.0
+
+    # -------------------------------------------------------------------------
+    # Sensor 4: Visual Odometry Node (nav_msgs/msg/Odometry)
+    # Recommended: "pose_differential" or "twist" to prevent fighting drifting poses.
+    # -------------------------------------------------------------------------
+    visual_odom:
+      enabled: true
+      topic: "/visual_odom"
+      use_sensor_data_qos: false
+      fusion_mode: "pose_differential"
+      use_position: true
+      use_yaw: true
+      use_vx: true
+      use_vy: true
+      use_omega: true
+      use_message_covariance: true
+      fallback_pose_variance: [0.09, 0.09, 0.03]
+      fallback_twist_variance: [0.08, 0.08, 0.04]
+      differential_step_variance: [0.008, 0.008, 0.003]
+      mahalanobis_threshold: 11.345
+      timeout_sec: 1.0
